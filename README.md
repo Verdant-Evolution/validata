@@ -26,8 +26,8 @@ class ProgramConfig(BaseModel):
 
 
 To specify which model to use when editing, you use a **Model URI** that tells python how to import the model. It supports two different specifications:
-1. <file path>:<model class>  (ex. ./my_folder/my_file.py:MyModel)
-2. <module path>:<model class> (ex. my_module.my_submodule:MyModel)
+1. &lt;file path&gt;:&lt;model class&gt;  (ex. ./my_folder/my_file.py:MyModel)
+2. &lt;module path&gt;:&lt;model class&gt; (ex. my_module.my_submodule:MyModel)
 
 Now, we can run the following command to start creating a config:
 ```validata model.py:ProgramConfig config.json```
