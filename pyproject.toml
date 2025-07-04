@@ -1,5 +1,5 @@
 [project]
-name = "pydantic-ui"
+name = "validata"
 version = "0.1.0"
 description = "A textual editor and validator for YAML/JSON files against Pydantic models."
 authors = ["Your Name <your.email@example.com>"]
@@ -12,4 +12,4 @@ dependencies = [
 ]
 
 [project.scripts]
-pydantic-ui = "pydantic_ui.__main__:main"
+validata = "validata.__main__:main"
