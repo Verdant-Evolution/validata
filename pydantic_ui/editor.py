@@ -5,7 +5,7 @@ from textual.widgets import Footer, Header, Input, Static, TextArea
 from textual.containers import Container, Vertical
 from textual.reactive import reactive
 from textual import events
-from pydantic_ui.lib import get_initial_content, Parser as PydanticParser
+from pydantic_ui.lib import get_initial_content
 from pydantic import BaseModel, ValidationError
 import os
 import yaml
@@ -69,8 +69,14 @@ class FileEditorApp(App):
             raise ValueError("Unsupported file format")
         self.parser = parser
 
+        # Set syntax highlighting based on file type
+        if force_format == "json" or self.file_path.suffix == ".json":
+            self.syntax = "json"
+        else:
+            self.syntax = "yaml"
+
         self.validation_panel = ValidationErrorPanel()
-        self.text_area = TextArea()
+        self.text_area = TextArea(language=self.syntax)
 
     def compose(self) -> ComposeResult:
         yield Header()
