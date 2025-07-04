@@ -1,18 +1,17 @@
 from pathlib import Path
-from typing import Callable, Literal, Sequence, cast
+from typing import Callable, Literal, Sequence
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Input, Static, TextArea
 from textual.containers import Container, Vertical
 from textual.reactive import reactive
 from textual import events
-from pydantic_ui.lib import import_model, load_data
+from pydantic_ui.lib import get_initial_content, Parser as PydanticParser
 from pydantic import BaseModel, ValidationError
 import os
 import yaml
 import json
 
 ParseFormat = Literal["json", "yaml"]
-Parser = Callable[[str], dict]
 
 PARSER_MAP = {
     ".json": "json",
@@ -20,9 +19,22 @@ PARSER_MAP = {
     ".yml": "yaml",
 }
 
+
+class Parser:
+    def __init__(self, parse_func, unparse_func):
+        self.parse_func = parse_func
+        self.unparse_func = unparse_func
+
+    def parse(self, text: str):
+        return self.parse_func(text)
+
+    def unparse(self, data) -> str:
+        return self.unparse_func(data)
+
+
 PARSERS: dict[str, Parser] = {
-    "json": json.loads,
-    "yaml": yaml.safe_load,
+    "json": Parser(json.loads, lambda d: json.dumps(d, indent=2)),
+    "yaml": Parser(yaml.safe_load, lambda d: yaml.safe_dump(d, sort_keys=False)),
 }
 
 
@@ -44,11 +56,13 @@ class FileEditorApp(App):
         model_class: type[BaseModel],
         file_path: Path | str,
         force_format: ParseFormat | None = None,
+        force_clean: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.model_class = model_class
         self.file_path = Path(file_path)
+        self.force_clean = force_clean
 
         parser = PARSERS.get(force_format or self.file_path.suffix.lstrip("."), None)
         if parser is None:
@@ -66,19 +80,24 @@ class FileEditorApp(App):
         yield Footer()
 
     def on_mount(self):
-        if os.path.exists(self.file_path):
-            with open(self.file_path, "r", encoding="utf-8") as f:
-                self.text_area.text = f.read()
-        else:
-            self.text_area.text = ""
-        self.action_validate()  # Validate immediately on load
+        initial_content = ""
+        if not self.force_clean:
+            if self.file_path.exists():
+                initial_content = self.file_path.read_text()
+            else:
+                try:
+                    data = get_initial_content(self.model_class)
+                    initial_content = self.parser.unparse(data)
+                except Exception as e:
+                    initial_content = ""
+                    self.notify(
+                        f"Default serialization failed for {self.model_class.__name__}",
+                        severity="error",
+                        timeout=4,
+                    )
 
-    def action_save(self):
-        with open(self.file_path, "w", encoding="utf-8") as f:
-            f.write(self.text_area.text)
-        self.validation_panel.update_errors("File saved.")
-        self.action_validate()  # Update validation panel after save
-        self.notify("File saved.", timeout=2)
+        self.text_area.text = initial_content
+        self.action_validate()
 
     def format_validation_errors(self, ve: ValidationError) -> str:
         lines = []
@@ -101,7 +120,7 @@ class FileEditorApp(App):
         text = self.text_area.text
         try:
             try:
-                data = self.parser(text)
+                data = self.parser.parse(text)
             except json.JSONDecodeError as e:
                 self.validation_panel.update_errors(
                     f"JSON parsing error at line {e.lineno}, column {e.colno}: {e.msg}"
@@ -111,11 +130,16 @@ class FileEditorApp(App):
                 self.validation_panel.update_errors(f"YAML parsing error: {str(e)}")
                 return
             self.model_class(**data)
-            self.validation_panel.update_errors("Validation successful!")
+            self.validation_panel.update_errors("")
         except ValidationError as ve:
             self.validation_panel.update_errors(self.format_validation_errors(ve))
         except Exception as e:
             self.validation_panel.update_errors(f"Error: {e}")
+
+    def action_save(self):
+        self.file_path.write_text(self.text_area.text)
+        self.action_validate()  # Update validation panel after save
+        self.notify("File saved.", timeout=2)
 
     async def on_key(self, event: events.Key):
         if event.key == "f5":

@@ -1,10 +1,19 @@
 import importlib
 import importlib.util
+from re import A
 import sys
 from pathlib import Path
+from typing import Any, Callable
 from pydantic import BaseModel
+from pydantic.fields import FieldInfo
 import yaml
 import json
+import inspect
+from pydantic_core import PydanticUndefined
+
+
+Parser = Callable[[str], dict]
+
 
 def import_model(model_path: str):
     """
@@ -63,3 +72,46 @@ def load_data(file_path: str):
             return json.load(f)
         else:
             raise ValueError("Input file must be .yaml, .yml, or .json")
+
+
+def get_initial_content(model_class) -> dict[str, Any]:
+    """Generate initial content dict for a new file based on required fields and defaults."""
+    import typing
+
+    def get_field_default(field: FieldInfo):
+        val = field.default
+        if val is not inspect._empty and val is not PydanticUndefined:
+            return val
+
+        # Handle built-in and typing types
+        origin = getattr(field.annotation, "__origin__", None)
+        typ = origin or field.annotation
+        if typ in (list, typing.List):
+            return []
+        if typ in (dict, typing.Dict):
+            return {}
+        if typ in (str, typing.Text):
+            return ""
+        if typ is int:
+            return 0
+        if typ is float:
+            return 0.0
+        if typ is bool:
+            return False
+        return None
+
+    def build_dict(model: type[BaseModel]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for name, field in model.model_fields.items():
+            try:
+                if field.annotation is not None and issubclass(
+                    field.annotation, BaseModel
+                ):
+                    result[name] = build_dict(field.annotation)
+                else:
+                    result[name] = get_field_default(field)
+            except:
+                result[name] = None
+        return result
+
+    return build_dict(model_class)

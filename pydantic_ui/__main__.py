@@ -20,13 +20,21 @@ def main():
         choices=["json", "yaml"],
         help="Force file format for parsing (json or yaml)",
     )
+    parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="Start with an empty file, ignoring any existing or generated content",
+    )
     args = parser.parse_args()
     try:
         model_class = import_model(args.model)
     except Exception as e:
         print(f"Error importing model: {e}", file=sys.stderr)
         sys.exit(1)
-    FileEditorApp(model_class, args.file, force_format=args.format).run()
+    app = FileEditorApp(
+        model_class, args.file, force_format=args.format, force_clean=args.clean
+    )
+    app.run()
 
 
 if __name__ == "__main__":
