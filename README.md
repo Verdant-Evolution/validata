@@ -30,7 +30,9 @@ To specify which model to use when editing, you use a **Model URI** that tells p
 2. &lt;module path&gt;:&lt;model class&gt; (ex. my_module.my_submodule:MyModel)
 
 Now, we can run the following command to start creating a config:
-```validata model.py:ProgramConfig config.json```
+```
+validata model.py:ProgramConfig config.json
+```
 ![image](https://github.com/user-attachments/assets/c5ea056e-3d49-48fc-a66d-ebcd8c08e82c)
 
 If the target file (`config.json` in this case) does not exist, it will populate the editor with some attempted defaults for the field - to at least give you the structure of the model.
