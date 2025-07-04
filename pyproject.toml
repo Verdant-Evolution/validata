@@ -2,7 +2,9 @@
 name = "validata"
 version = "0.1.0"
 description = "A textual editor and validator for YAML/JSON files against Pydantic models."
-authors = ["Your Name <your.email@example.com>"]
+authors = [
+    { name = "Kevin Welsh", email = "kevin.welsh@verdantevolution.com" }
+]
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [

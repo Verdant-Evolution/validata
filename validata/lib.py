@@ -12,7 +12,16 @@ import inspect
 from pydantic_core import PydanticUndefined
 
 
-Parser = Callable[[str], dict]
+class Parser:
+    def __init__(self, parse_func, unparse_func):
+        self.parse_func = parse_func
+        self.unparse_func = unparse_func
+
+    def parse(self, text: str):
+        return self.parse_func(text)
+
+    def unparse(self, data) -> str:
+        return self.unparse_func(data)
 
 
 def import_model(model_path: str):

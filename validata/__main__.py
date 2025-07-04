@@ -1,6 +1,5 @@
-from pathlib import Path
 import sys
-from .editor import FileEditorApp
+from .editor import Validata
 from .lib import import_model
 
 
@@ -31,7 +30,7 @@ def main():
     except Exception as e:
         print(f"Error importing model: {e}", file=sys.stderr)
         sys.exit(1)
-    app = FileEditorApp(
+    app = Validata(
         model_class, args.file, force_format=args.format, force_clean=args.clean
     )
     app.run()

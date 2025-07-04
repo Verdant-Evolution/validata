@@ -5,9 +5,8 @@ from textual.widgets import Footer, Header, Input, Static, TextArea
 from textual.containers import Container, Vertical
 from textual.reactive import reactive
 from textual import events
-from pydantic_ui.lib import get_initial_content
+from .lib import get_initial_content, Parser
 from pydantic import BaseModel, ValidationError
-import os
 import yaml
 import json
 
@@ -18,18 +17,6 @@ PARSER_MAP = {
     ".yaml": "yaml",
     ".yml": "yaml",
 }
-
-
-class Parser:
-    def __init__(self, parse_func, unparse_func):
-        self.parse_func = parse_func
-        self.unparse_func = unparse_func
-
-    def parse(self, text: str):
-        return self.parse_func(text)
-
-    def unparse(self, data) -> str:
-        return self.unparse_func(data)
 
 
 PARSERS: dict[str, Parser] = {
@@ -43,12 +30,13 @@ class ValidationErrorPanel(Static):
         self.update(errors)
 
 
-class FileEditorApp(App):
+class Validata(App):
     CSS_PATH = None
     BINDINGS = [
         ("ctrl+s", "save", "Save"),
         ("ctrl+q", "quit", "Quit"),
         ("ctrl+v", "validate", "Validate"),
+        ("f5", "validate", "Validate"),
     ]
 
     def __init__(
@@ -77,6 +65,9 @@ class FileEditorApp(App):
 
         self.validation_panel = ValidationErrorPanel()
         self.text_area = TextArea(language=self.syntax)
+
+        self.title = "Validata"
+        self.sub_title = f"{self.file_path.name} ({self.model_class.__name__})"
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -113,6 +104,7 @@ class FileEditorApp(App):
             loc_str = ".".join(str(x) for x in loc)
             msg = err.get("msg", "")
             typ = err.get("type", "")
+
             # If missing and required, show expected type
             if typ == "missing" and loc:
                 field = model_fields.get(loc[0])
@@ -125,18 +117,15 @@ class FileEditorApp(App):
     def action_validate(self):
         text = self.text_area.text
         try:
-            try:
-                data = self.parser.parse(text)
-            except json.JSONDecodeError as e:
-                self.validation_panel.update_errors(
-                    f"JSON parsing error at line {e.lineno}, column {e.colno}: {e.msg}"
-                )
-                return
-            except yaml.YAMLError as e:
-                self.validation_panel.update_errors(f"YAML parsing error: {str(e)}")
-                return
+            data = self.parser.parse(text)
             self.model_class(**data)
             self.validation_panel.update_errors("")
+        except json.JSONDecodeError as e:
+            self.validation_panel.update_errors(
+                f"JSON parsing error at line {e.lineno}, column {e.colno}: {e.msg}"
+            )
+        except yaml.YAMLError as e:
+            self.validation_panel.update_errors(f"YAML parsing error: {str(e)}")
         except ValidationError as ve:
             self.validation_panel.update_errors(self.format_validation_errors(ve))
         except Exception as e:
@@ -144,9 +133,5 @@ class FileEditorApp(App):
 
     def action_save(self):
         self.file_path.write_text(self.text_area.text)
-        self.action_validate()  # Update validation panel after save
+        self.action_validate()
         self.notify("File saved.", timeout=2)
-
-    async def on_key(self, event: events.Key):
-        if event.key == "f5":
-            self.action_validate()
